@@ -51,7 +51,7 @@ public class MongoMaxValueIncrementer implements DataFieldMaxValueIncrementer {
                 .setOnInsert(
                     "NOTE",
                     "Increment COUNT using findAndModify to ensure that the COUNT field will be incremented atomically with the fetch of this document"),
-            FindAndModifyOptions.none(),
+            FindAndModifyOptions.options().upsert(true).returnNew(true),
             UniqueIdentifierCounter.class,
             collectionName);
     verifyCounter(counter);
