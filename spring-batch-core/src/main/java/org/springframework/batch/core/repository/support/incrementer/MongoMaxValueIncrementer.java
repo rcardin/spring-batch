@@ -48,7 +48,6 @@ public class MongoMaxValueIncrementer implements DataFieldMaxValueIncrementer {
             Query.query(Criteria.where("_id").is("UNIQUE_COUNT_DOCUMENT_IDENTIFIER")),
             new Update()
                 .inc("COUNT", 1)
-                .setOnInsert("COUNT", 0)
                 .setOnInsert(
                     "NOTE",
                     "Increment COUNT using findAndModify to ensure that the COUNT field will be incremented atomically with the fetch of this document"),
