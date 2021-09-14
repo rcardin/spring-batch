@@ -18,6 +18,7 @@ import org.springframework.jdbc.support.incrementer.DataFieldMaxValueIncrementer
  *     href="https://www.mongodb.com/blog/post/generating-globally-unique-identifiers-for-use-with-mongodb">Generating
  *     Globally Unique Identifiers for Use with MongoDB</a>
  * @author Riccardo Cardin
+ * @author Giuseppe Pavan
  */
 public class MongoMaxValueIncrementer implements DataFieldMaxValueIncrementer {
 
