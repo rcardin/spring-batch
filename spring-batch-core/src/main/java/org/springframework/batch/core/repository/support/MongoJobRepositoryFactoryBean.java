@@ -10,6 +10,7 @@ import org.springframework.batch.core.repository.dao.MongoJobExecutionDao;
 import org.springframework.batch.core.repository.dao.MongoJobInstanceDao;
 import org.springframework.batch.core.repository.dao.MongoStepExecutionDao;
 import org.springframework.batch.core.repository.dao.StepExecutionDao;
+import org.springframework.batch.core.repository.support.incrementer.MongoMaxValueIncrementer;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.Assert;
 
@@ -39,7 +40,15 @@ public class MongoJobRepositoryFactoryBean extends AbstractJobRepositoryFactoryB
 
     @Override
     protected StepExecutionDao createStepExecutionDao() throws Exception {
-        return new MongoStepExecutionDao(this.mongoClient, this.databaseName);
+        return new MongoStepExecutionDao(
+            this.mongoClient,
+            this.databaseName,
+            new MongoMaxValueIncrementer(
+                this.mongoClient,
+                this.databaseName,
+                "STEP_EXECUTION_SEQ"
+            )
+        );
     }
 
     @Override

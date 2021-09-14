@@ -7,14 +7,20 @@ import com.mongodb.client.MongoClient;
 import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobInstance;
 import org.springframework.batch.core.StepExecution;
+import org.springframework.batch.core.repository.support.incrementer.MongoMaxValueIncrementer;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 
 public class MongoStepExecutionDao implements StepExecutionDao {
 
-    private MongoOperations mongoOperations;
+    private final MongoOperations mongoOperations;
+    private final MongoMaxValueIncrementer stepExecutionIncrementer;
 
-    public MongoStepExecutionDao(MongoClient mongoClient, String databaseName) {
+    public MongoStepExecutionDao(
+        MongoClient mongoClient,
+        String databaseName,
+        MongoMaxValueIncrementer stepExecutionIncrementer) {
+        this.stepExecutionIncrementer = stepExecutionIncrementer;
         this.mongoOperations = new MongoTemplate(mongoClient, databaseName);
     }
 
