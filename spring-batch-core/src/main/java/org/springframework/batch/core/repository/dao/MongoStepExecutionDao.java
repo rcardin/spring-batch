@@ -17,6 +17,11 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.util.Assert;
 
+/**
+ * @author Mahmoud Ben Hassine
+ * @author Riccardo Cardin
+ * @author Giuseppe Pavan
+ */
 public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean {
 
   private static final Log logger = LogFactory.getLog(MongoStepExecutionDao.class);
@@ -43,6 +48,12 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
 
   @Override
   public void saveStepExecution(StepExecution stepExecution) {
+    final MongoStepExecution mongoStepExecution = buildMongoStepExecution(stepExecution);
+  
+    mongoOperations.insert(mongoStepExecution, COLLECTION_NAME);
+  }
+  
+  private MongoStepExecution buildMongoStepExecution(StepExecution stepExecution) {
     Assert.isNull(
         stepExecution.getId(),
         "to-be-saved (not updated) StepExecution can't already have an id assigned");
@@ -53,10 +64,9 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
     stepExecution.setId(stepExecutionIncrementer.nextLongValue());
     stepExecution.incrementVersion(); // Should be 0
     final MongoStepExecution mongoStepExecution = MongoStepExecution.makeOf(stepExecution);
-
-    mongoOperations.insert(mongoStepExecution, COLLECTION_NAME);
+    return mongoStepExecution;
   }
-
+  
   /**
    * Validate StepExecution. At a minimum, JobId, StartTime, and Status cannot be null. EndTime can
    * be null for an unfinished job.

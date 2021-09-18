@@ -40,15 +40,18 @@ public class MongoJobRepositoryFactoryBean extends AbstractJobRepositoryFactoryB
 
     @Override
     protected StepExecutionDao createStepExecutionDao() throws Exception {
-        return new MongoStepExecutionDao(
+        final MongoStepExecutionDao mongoStepExecutionDao = new MongoStepExecutionDao(
+            this.mongoClient,
+            this.databaseName
+        );
+        final MongoMaxValueIncrementer stepExecutionIncrementer = new MongoMaxValueIncrementer(
             this.mongoClient,
             this.databaseName,
-            new MongoMaxValueIncrementer(
-                this.mongoClient,
-                this.databaseName,
-                "STEP_EXECUTION_SEQ"
-            )
+            "STEP_EXECUTION_SEQ"
         );
+        mongoStepExecutionDao.setStepExecutionIncrementer(stepExecutionIncrementer);
+        mongoStepExecutionDao.afterPropertiesSet();
+        return mongoStepExecutionDao;
     }
 
     @Override
