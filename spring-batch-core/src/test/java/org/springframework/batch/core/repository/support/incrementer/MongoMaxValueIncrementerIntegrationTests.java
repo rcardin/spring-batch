@@ -48,7 +48,7 @@ public class MongoMaxValueIncrementerIntegrationTests {
   }
 
   @Test
-  public void nextIntValue() {
+  public void testNextIntValue() {
     final MongoMaxValueIncrementer incrementer =
         new MongoMaxValueIncrementer(mongoClient, DATABASE_NAME, "nextIntValue");
 
@@ -60,7 +60,7 @@ public class MongoMaxValueIncrementerIntegrationTests {
   }
 
   @Test
-  public void nextStringValue() {
+  public void testNextStringValue() {
     final MongoMaxValueIncrementer incrementer =
         new MongoMaxValueIncrementer(mongoClient, DATABASE_NAME, "nextStringValue");
 
