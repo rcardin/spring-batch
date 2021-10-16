@@ -54,12 +54,6 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
   }
   
   private MongoStepExecution buildMongoStepExecution(StepExecution stepExecution) {
-    Assert.isNull(
-        stepExecution.getId(),
-        "to-be-saved (not updated) StepExecution can't already have an id assigned");
-    Assert.isNull(
-        stepExecution.getVersion(),
-        "to-be-saved (not updated) StepExecution can't already have a version assigned");
     validateStepExecution(stepExecution);
     stepExecution.setId(stepExecutionIncrementer.nextLongValue());
     stepExecution.incrementVersion(); // Should be 0
@@ -78,6 +72,12 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
     Assert.notNull(stepExecution.getStepName(), "StepExecution step name cannot be null.");
     Assert.notNull(stepExecution.getStartTime(), "StepExecution start time cannot be null.");
     Assert.notNull(stepExecution.getStatus(), "StepExecution status cannot be null.");
+    Assert.isNull(
+        stepExecution.getId(),
+        "to-be-saved (not updated) StepExecution can't already have an id assigned");
+    Assert.isNull(
+        stepExecution.getVersion(),
+        "to-be-saved (not updated) StepExecution can't already have a version assigned");
   }
 
   /**
