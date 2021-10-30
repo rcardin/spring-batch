@@ -1,9 +1,12 @@
 package org.springframework.batch.core.repository.dao;
 
 import com.mongodb.client.MongoClient;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.batch.core.JobExecution;
@@ -57,8 +60,7 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
     validateStepExecution(stepExecution);
     stepExecution.setId(stepExecutionIncrementer.nextLongValue());
     stepExecution.incrementVersion(); // Should be 0
-    final MongoStepExecution mongoStepExecution = MongoStepExecution.makeOf(stepExecution);
-    return mongoStepExecution;
+    return MongoStepExecution.makeOf(stepExecution);
   }
   
   /**
@@ -98,9 +100,16 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
       return description;
     }
   }
-
+  
   @Override
-  public void saveStepExecutions(Collection<StepExecution> stepExecutions) {}
+  public void saveStepExecutions(Collection<StepExecution> stepExecutions) {
+    Assert.notNull(stepExecutions, "Attempt to save a null collection of step executions");
+    if (!stepExecutions.isEmpty()) {
+      final List<MongoStepExecution> mongoStepExecutions =
+          stepExecutions.stream().map(this::buildMongoStepExecution).collect(Collectors.toList());
+      mongoOperations.insert(mongoStepExecutions, COLLECTION_NAME);
+    }
+  }
 
   @Override
   public void updateStepExecution(StepExecution stepExecution) {}

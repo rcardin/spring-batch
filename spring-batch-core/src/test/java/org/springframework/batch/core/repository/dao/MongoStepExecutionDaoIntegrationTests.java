@@ -1,11 +1,13 @@
 package org.springframework.batch.core.repository.dao;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
+import java.util.Collections;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -54,6 +56,7 @@ public class MongoStepExecutionDaoIntegrationTests {
     shouldFailIfStatusIsEmpty();
     shouldFailIfIdIsNotEmpty();
     shouldFailIfVersionIsNotEmpty();
+    shouldInsertValidStepExecution();
   }
   
   private void shouldFailIfNoStepExecutionIsProvided() {
@@ -105,6 +108,32 @@ public class MongoStepExecutionDaoIntegrationTests {
     );
   }
   
+  private void shouldInsertValidStepExecution() {
+    final StepExecution stepExecution = Fixture.makeStepExecutionWithEmptyId();
+    dao.saveStepExecution(stepExecution);
+    assertNotNull(stepExecution.getId());
+  }
+
+  @Test
+  public void testSaveStepExecutions() {
+    shouldFailIfNoStepExecutionsAreProvided();
+    shouldInsertValidStepExecutions();
+  }
+  
+  private void shouldFailIfNoStepExecutionsAreProvided() {
+    assertThrows(
+        "Attempt to save a null collection of step executions",
+        IllegalArgumentException.class,
+        () -> dao.saveStepExecutions(null)
+    );
+  }
+  
+  private void shouldInsertValidStepExecutions() {
+    final StepExecution stepExecution = Fixture.makeStepExecutionWithEmptyId();
+    dao.saveStepExecutions(Collections.singletonList(stepExecution));
+    assertNotNull(stepExecution.getId());
+  }
+  
   @Configuration
   static class TestConfiguration {}
   
@@ -153,6 +182,13 @@ public class MongoStepExecutionDaoIntegrationTests {
       final StepExecution stepExecution = mock(StepExecution.class);
       doReturn(null).when(stepExecution).getStatus();
       return stepExecution;
+    }
+  
+    static StepExecution makeStepExecutionWithEmptyId() {
+      return new StepExecution(
+          "stepName",
+          mock(JobExecution.class)
+      );
     }
   }
 }
