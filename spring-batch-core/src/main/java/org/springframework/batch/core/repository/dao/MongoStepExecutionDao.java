@@ -1,7 +1,7 @@
 package org.springframework.batch.core.repository.dao;
 
 import com.mongodb.client.MongoClient;
-import java.util.ArrayList;
+import com.mongodb.client.result.UpdateResult;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
@@ -14,10 +14,14 @@ import org.springframework.batch.core.JobInstance;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.repository.support.incrementer.MongoMaxValueIncrementer;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.util.Assert;
 
 /**
@@ -52,17 +56,23 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
   @Override
   public void saveStepExecution(StepExecution stepExecution) {
     final MongoStepExecution mongoStepExecution = buildMongoStepExecution(stepExecution);
-  
+
     mongoOperations.insert(mongoStepExecution, COLLECTION_NAME);
   }
-  
+
   private MongoStepExecution buildMongoStepExecution(StepExecution stepExecution) {
     validateStepExecution(stepExecution);
+    Assert.isNull(
+        stepExecution.getId(),
+        "to-be-saved (not updated) StepExecution can't already have an id assigned");
+    Assert.isNull(
+        stepExecution.getVersion(),
+        "to-be-saved (not updated) StepExecution can't already have a version assigned");
     stepExecution.setId(stepExecutionIncrementer.nextLongValue());
     stepExecution.incrementVersion(); // Should be 0
     return MongoStepExecution.makeOf(stepExecution);
   }
-  
+
   /**
    * Validate StepExecution. At a minimum, JobId, StartTime, and Status cannot be null. EndTime can
    * be null for an unfinished job.
@@ -74,12 +84,6 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
     Assert.notNull(stepExecution.getStepName(), "StepExecution step name cannot be null.");
     Assert.notNull(stepExecution.getStartTime(), "StepExecution start time cannot be null.");
     Assert.notNull(stepExecution.getStatus(), "StepExecution status cannot be null.");
-    Assert.isNull(
-        stepExecution.getId(),
-        "to-be-saved (not updated) StepExecution can't already have an id assigned");
-    Assert.isNull(
-        stepExecution.getVersion(),
-        "to-be-saved (not updated) StepExecution can't already have a version assigned");
   }
 
   /**
@@ -100,19 +104,77 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
       return description;
     }
   }
-  
+
   @Override
   public void saveStepExecutions(Collection<StepExecution> stepExecutions) {
     Assert.notNull(stepExecutions, "Attempt to save a null collection of step executions");
     if (!stepExecutions.isEmpty()) {
       final List<MongoStepExecution> mongoStepExecutions =
-          stepExecutions.stream().map(this::buildMongoStepExecution).collect(Collectors.toList());
+          stepExecutions
+              .stream()
+              .map(this::buildMongoStepExecution)
+              .collect(Collectors.toList());
       mongoOperations.insert(mongoStepExecutions, COLLECTION_NAME);
     }
   }
 
   @Override
-  public void updateStepExecution(StepExecution stepExecution) {}
+  public void updateStepExecution(StepExecution stepExecution) {
+    validateStepExecution(stepExecution);
+    Assert.notNull(stepExecution.getId(),
+        "StepExecution Id cannot be null. StepExecution must saved"
+            + " before it can be updated.");
+    final String exitDescription = truncateExitDescription(stepExecution
+        .getExitStatus()
+        .getExitDescription());
+
+    synchronized (stepExecution) {
+      int version = stepExecution.getVersion() + 1;
+      final UpdateResult updateResult = mongoOperations.updateFirst(new Query(Criteria
+              .where("id")
+              .is(stepExecution.getId())
+              .and("version")
+              .is(stepExecution.getVersion())),
+          new Update()
+              .set("startTime", stepExecution.getStartTime())
+              .set("endTime", stepExecution.getEndTime())
+              .set("status", stepExecution
+                  .getStatus()
+                  .toString())
+              .set("commitCount", stepExecution.getCommitCount())
+              .set("readCount", stepExecution.getReadCount())
+              .set("filterCount", stepExecution.getFilterCount())
+              .set("writeCount", stepExecution.getWriteCount())
+              .set("exitCode", stepExecution
+                  .getExitStatus()
+                  .getExitCode())
+              .set("exitDescription", exitDescription)
+              .set("version", version)
+              .set("readSkipCount", stepExecution.getReadSkipCount())
+              .set("processSkipCount", stepExecution.getProcessSkipCount())
+              .set("writeSkipCount", stepExecution.getWriteSkipCount())
+              .set("rollbackCount", stepExecution.getRollbackCount())
+              .set("lastUpdated", stepExecution.getLastUpdated()),
+          StepExecution.class,
+          COLLECTION_NAME);
+
+      if (updateResult.getModifiedCount() == 0) {
+        final StepExecution currentStepExecution = mongoOperations
+            .findOne(
+                new Query(Criteria
+                    .where("id")
+                    .is(stepExecution.getId())),
+                StepExecution.class, COLLECTION_NAME);
+        Assert.notNull(currentStepExecution,
+            "Can't find a step execution with id=" + stepExecution.getId());
+        int currentVersion = currentStepExecution.getVersion();
+        throw new OptimisticLockingFailureException("Attempt to update step execution id="
+            + stepExecution.getId() + " with wrong version (" + stepExecution.getVersion()
+            + "), where current version is " + currentVersion);
+      }
+      stepExecution.incrementVersion();
+    }
+  }
 
   @Override
   public StepExecution getStepExecution(JobExecution jobExecution, Long stepExecutionId) {
@@ -125,17 +187,22 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
   }
 
   @Override
-  public void addStepExecutions(JobExecution jobExecution) {}
+  public void addStepExecutions(JobExecution jobExecution) {
+  }
 
   @Override
   public int countStepExecutions(JobInstance jobInstance, String stepName) {
     return 0;
   }
 
-  /** Mongo representation of the object (aka, persistent model) */
+  /**
+   * Mongo representation of the object (aka, persistent model)
+   */
   @Document
   static class MongoStepExecution {
-    @Id private long stepExecutionId;
+
+    @Id
+    private long stepExecutionId;
     private int version;
     private String stepName;
     private long jobExecutionId;
@@ -298,14 +365,20 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
       this.lastUpdated = lastUpdated;
     }
 
-    /** Creates a persistent model from the business model of a step execution. */
+    /**
+     * Creates a persistent model from the business model of a step execution.
+     */
     static MongoStepExecution makeOf(StepExecution stepExecution) {
       final MongoStepExecution mongoStepExecution = new MongoStepExecution();
       mongoStepExecution.setJobExecutionId(stepExecution.getJobExecutionId());
       mongoStepExecution.setStepExecutionId(stepExecution.getId());
-      mongoStepExecution.setExitCode(stepExecution.getExitStatus().getExitCode());
+      mongoStepExecution.setExitCode(stepExecution
+          .getExitStatus()
+          .getExitCode());
       mongoStepExecution.setExitMessage(
-          truncateExitDescription(stepExecution.getExitStatus().getExitDescription()));
+          truncateExitDescription(stepExecution
+              .getExitStatus()
+              .getExitDescription()));
       mongoStepExecution.setStepName(stepExecution.getStepName());
       mongoStepExecution.setCommitCount(stepExecution.getCommitCount());
       mongoStepExecution.setEndTime(stepExecution.getEndTime());
@@ -317,7 +390,9 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
       mongoStepExecution.setRollbackCount(stepExecution.getRollbackCount());
       mongoStepExecution.setStarTime(stepExecution.getStartTime());
       mongoStepExecution.setEndTime(stepExecution.getEndTime());
-      mongoStepExecution.setStatus(stepExecution.getStatus().name());
+      mongoStepExecution.setStatus(stepExecution
+          .getStatus()
+          .name());
       mongoStepExecution.setVersion(stepExecution.getVersion());
       mongoStepExecution.setWriteCount(stepExecution.getWriteCount());
       mongoStepExecution.setWriteSkipCount(stepExecution.getWriteSkipCount());

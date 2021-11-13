@@ -1,5 +1,6 @@
 package org.springframework.batch.core.repository.dao;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.doReturn;
@@ -119,7 +120,21 @@ public class MongoStepExecutionDaoIntegrationTests {
     shouldFailIfNoStepExecutionsAreProvided();
     shouldInsertValidStepExecutions();
   }
-  
+
+  @Test
+  public void testUpdateStepExecution() {
+    shouldFailIfNoStepExecutionsAreProvided();
+    shouldUpdateValidStepExecution();
+  }
+
+  private void shouldUpdateValidStepExecution() {
+    final StepExecution stepExecution = Fixture.makeStepExecutionWithEmptyId();
+    dao.saveStepExecution(stepExecution);
+    assertEquals(stepExecution.getVersion().longValue(), 0L);
+    dao.updateStepExecution(stepExecution);
+    assertEquals(stepExecution.getVersion().longValue(), 1L);
+  }
+
   private void shouldFailIfNoStepExecutionsAreProvided() {
     assertThrows(
         "Attempt to save a null collection of step executions",
