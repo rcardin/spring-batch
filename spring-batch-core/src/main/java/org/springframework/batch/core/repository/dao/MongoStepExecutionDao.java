@@ -9,6 +9,8 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.springframework.batch.core.BatchStatus;
+import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobInstance;
 import org.springframework.batch.core.StepExecution;
@@ -178,7 +180,22 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
 
   @Override
   public StepExecution getStepExecution(JobExecution jobExecution, Long stepExecutionId) {
-    return null;
+    final Long jobExecutionId = jobExecution.getId();
+    final List<MongoStepExecution> executions = mongoOperations.find(
+        Query.query(
+            Criteria.where("id").is(stepExecutionId).and("jobExecutionId").is(jobExecutionId)
+        ),
+        MongoStepExecution.class,
+        COLLECTION_NAME
+    );
+  
+    Assert.state(executions.size() <= 1,
+        "There can be at most one step execution with given name for single job execution");
+    if (executions.isEmpty()) {
+      return null;
+    } else {
+      return executions.get(0).toStepExecution(jobExecution);
+    }
   }
 
   @Override
@@ -206,7 +223,7 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
     private int version;
     private String stepName;
     private long jobExecutionId;
-    private Date starTime;
+    private Date startTime;
     private Date endTime;
     private String status;
     private int commitCount;
@@ -253,12 +270,12 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
       this.jobExecutionId = jobExecutionId;
     }
 
-    public Date getStarTime() {
-      return starTime;
+    public Date getStartTime() {
+      return startTime;
     }
 
-    public void setStarTime(Date starTime) {
-      this.starTime = starTime;
+    public void setStartTime(Date startTime) {
+      this.startTime = startTime;
     }
 
     public Date getEndTime() {
@@ -388,7 +405,7 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
       mongoStepExecution.setReadCount(stepExecution.getReadCount());
       mongoStepExecution.setReadSkipCount(stepExecution.getReadSkipCount());
       mongoStepExecution.setRollbackCount(stepExecution.getRollbackCount());
-      mongoStepExecution.setStarTime(stepExecution.getStartTime());
+      mongoStepExecution.setStartTime(stepExecution.getStartTime());
       mongoStepExecution.setEndTime(stepExecution.getEndTime());
       mongoStepExecution.setStatus(stepExecution
           .getStatus()
@@ -398,6 +415,28 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
       mongoStepExecution.setWriteSkipCount(stepExecution.getWriteSkipCount());
 
       return mongoStepExecution;
+    }
+  
+    /**
+     * Creates a business model from the persistent model of a step execution.
+     */
+    StepExecution toStepExecution(JobExecution jobExecution) {
+      StepExecution stepExecution = new StepExecution(stepName, jobExecution, stepExecutionId);
+      stepExecution.setCommitCount(commitCount);
+      stepExecution.setEndTime(endTime);
+      stepExecution.setExitStatus(new ExitStatus(exitCode, exitMessage));
+      stepExecution.setFilterCount(filterCount);
+      stepExecution.setLastUpdated(lastUpdated);
+      stepExecution.setProcessSkipCount(processSkipCount);
+      stepExecution.setReadCount(readCount);
+      stepExecution.setReadSkipCount(readSkipCount);
+      stepExecution.setRollbackCount(rollbackCount);
+      stepExecution.setStartTime(startTime);
+      stepExecution.setStatus(BatchStatus.valueOf(status));
+      stepExecution.setVersion(version);
+      stepExecution.setWriteCount(writeCount);
+      stepExecution.setWriteSkipCount(writeSkipCount);
+      return stepExecution;
     }
 
     @Override
@@ -421,7 +460,7 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
           && processSkipCount == that.processSkipCount
           && rollbackCount == that.rollbackCount
           && Objects.equals(stepName, that.stepName)
-          && Objects.equals(starTime, that.starTime)
+          && Objects.equals(startTime, that.startTime)
           && Objects.equals(endTime, that.endTime)
           && Objects.equals(status, that.status)
           && Objects.equals(exitCode, that.exitCode)
@@ -436,7 +475,7 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
           version,
           stepName,
           jobExecutionId,
-          starTime,
+          startTime,
           endTime,
           status,
           commitCount,
@@ -465,7 +504,7 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
           + ", jobExecutionId="
           + jobExecutionId
           + ", starTime="
-          + starTime
+          + startTime
           + ", endTime="
           + endTime
           + ", status='"
