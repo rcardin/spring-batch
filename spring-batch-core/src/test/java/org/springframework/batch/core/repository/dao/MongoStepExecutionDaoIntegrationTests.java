@@ -2,9 +2,11 @@ package org.springframework.batch.core.repository.dao;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
@@ -24,6 +26,7 @@ import org.testcontainers.utility.DockerImageName;
 
 /**
  * @author Riccardo Cardin
+ * @author Tommaso Normani
  */
 @RunWith(SpringRunner.class)
 @ContextConfiguration
@@ -148,6 +151,49 @@ public class MongoStepExecutionDaoIntegrationTests {
     dao.saveStepExecutions(Collections.singletonList(stepExecution));
     assertNotNull(stepExecution.getId());
   }
+
+  @Test
+  public void testGetStepExecution() {
+    shouldReturnNullIfStepExecutionDoesNotExist();
+    shouldReturnValidStepExecution();
+  }
+  
+  private void shouldReturnNullIfStepExecutionDoesNotExist() {
+    final JobExecution jobExecution = mock(JobExecution.class);
+    when(jobExecution.getId()).thenReturn(1L);
+  
+    final StepExecution result = dao.getStepExecution(jobExecution, 1L);
+  
+    assertNull(result);
+  }
+
+  private void shouldReturnValidStepExecution() {
+  
+    final JobExecution jobExecution = mock(JobExecution.class);
+    when(jobExecution.getId()).thenReturn(1L);
+    
+    final StepExecution stepExecution = Fixture.makeStepExecutionWithEmptyId(jobExecution);
+    dao.saveStepExecution(stepExecution);
+    final StepExecution stepExecutionFromDB = dao.getStepExecution(jobExecution, stepExecution.getId());
+    assertNotNull(stepExecutionFromDB);
+    assertEquals(stepExecution.getId(), stepExecutionFromDB.getId());
+    assertEquals(stepExecution.getVersion(), stepExecutionFromDB.getVersion());
+    assertEquals(stepExecution.getStepName(), stepExecutionFromDB.getStepName());
+    assertEquals(stepExecution.getStartTime(), stepExecutionFromDB.getStartTime());
+    assertEquals(stepExecution.getEndTime(), stepExecutionFromDB.getEndTime());
+    assertEquals(stepExecution.getStatus(), stepExecutionFromDB.getStatus());
+    assertEquals(stepExecution.getExitStatus(), stepExecutionFromDB.getExitStatus());
+    assertEquals(stepExecution.getJobExecutionId(), stepExecutionFromDB.getJobExecutionId());
+    assertEquals(stepExecution.getCommitCount(), stepExecutionFromDB.getCommitCount());
+    assertEquals(stepExecution.getFilterCount(), stepExecutionFromDB.getFilterCount());
+    assertEquals(stepExecution.getReadCount(), stepExecutionFromDB.getReadCount());
+    assertEquals(stepExecution.getWriteCount(), stepExecutionFromDB.getWriteCount());
+    assertEquals(stepExecution.getReadSkipCount(), stepExecutionFromDB.getReadSkipCount());
+    assertEquals(stepExecution.getProcessSkipCount(), stepExecutionFromDB.getProcessSkipCount());
+    assertEquals(stepExecution.getRollbackCount(), stepExecutionFromDB.getRollbackCount());
+    assertEquals(stepExecution.getLastUpdated(), stepExecutionFromDB.getLastUpdated());
+    assertEquals(stepExecution.getVersion(), stepExecutionFromDB.getVersion());
+  }
   
   @Configuration
   static class TestConfiguration {}
@@ -203,6 +249,13 @@ public class MongoStepExecutionDaoIntegrationTests {
       return new StepExecution(
           "stepName",
           mock(JobExecution.class)
+      );
+    }
+    
+    static StepExecution makeStepExecutionWithEmptyId(JobExecution jobExecution) {
+      return new StepExecution(
+          "stepName",
+          jobExecution
       );
     }
   }

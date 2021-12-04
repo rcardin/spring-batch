@@ -164,7 +164,7 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
         final StepExecution currentStepExecution = mongoOperations
             .findOne(
                 new Query(Criteria
-                    .where("id")
+                    .where("_id")
                     .is(stepExecution.getId())),
                 StepExecution.class, COLLECTION_NAME);
         Assert.notNull(currentStepExecution,
@@ -183,7 +183,7 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
     final Long jobExecutionId = jobExecution.getId();
     final List<MongoStepExecution> executions = mongoOperations.find(
         Query.query(
-            Criteria.where("id").is(stepExecutionId).and("jobExecutionId").is(jobExecutionId)
+            Criteria.where("_id").is(stepExecutionId).and("jobExecutionId").is(jobExecutionId)
         ),
         MongoStepExecution.class,
         COLLECTION_NAME
