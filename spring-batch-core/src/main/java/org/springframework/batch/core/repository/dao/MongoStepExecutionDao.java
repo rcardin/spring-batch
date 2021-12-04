@@ -200,6 +200,10 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
 
   @Override
   public StepExecution getLastStepExecution(JobInstance jobInstance, String stepName) {
+    final Long jobInstanceId = jobInstance.getId();
+//    mongoOperations.findOne(
+//        Query.query(Criteria.where("_id").is(jobInstanceId)),
+//    )
     return null;
   }
 
@@ -223,6 +227,7 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
     private int version;
     private String stepName;
     private long jobExecutionId;
+    private long jobInstanceId;
     private Date startTime;
     private Date endTime;
     private String status;
@@ -381,13 +386,23 @@ public class MongoStepExecutionDao implements StepExecutionDao, InitializingBean
     public void setLastUpdated(Date lastUpdated) {
       this.lastUpdated = lastUpdated;
     }
-
+  
+    public long getJobInstanceId() {
+      return jobInstanceId;
+    }
+  
+    public void setJobInstanceId(long jobInstanceId) {
+      this.jobInstanceId = jobInstanceId;
+    }
+  
     /**
      * Creates a persistent model from the business model of a step execution.
      */
     static MongoStepExecution makeOf(StepExecution stepExecution) {
       final MongoStepExecution mongoStepExecution = new MongoStepExecution();
       mongoStepExecution.setJobExecutionId(stepExecution.getJobExecutionId());
+      mongoStepExecution.setJobInstanceId(
+          stepExecution.getJobExecution().getJobInstance().getInstanceId());
       mongoStepExecution.setStepExecutionId(stepExecution.getId());
       mongoStepExecution.setExitCode(stepExecution
           .getExitStatus()

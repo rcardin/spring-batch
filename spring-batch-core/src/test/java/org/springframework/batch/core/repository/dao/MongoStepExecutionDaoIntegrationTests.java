@@ -16,6 +16,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.batch.core.JobExecution;
+import org.springframework.batch.core.JobInstance;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.repository.support.incrementer.MongoMaxValueIncrementer;
 import org.springframework.context.annotation.Configuration;
@@ -169,7 +170,7 @@ public class MongoStepExecutionDaoIntegrationTests {
 
   private void shouldReturnValidStepExecution() {
   
-    final JobExecution jobExecution = mock(JobExecution.class);
+    final JobExecution jobExecution = Fixture.makeJobExecution();
     when(jobExecution.getId()).thenReturn(1L);
     
     final StepExecution stepExecution = Fixture.makeStepExecutionWithEmptyId(jobExecution);
@@ -246,17 +247,26 @@ public class MongoStepExecutionDaoIntegrationTests {
     }
   
     static StepExecution makeStepExecutionWithEmptyId() {
+      final JobExecution jobExecution = makeJobExecution();
       return new StepExecution(
           "stepName",
-          mock(JobExecution.class)
+          jobExecution
       );
     }
-    
+  
     static StepExecution makeStepExecutionWithEmptyId(JobExecution jobExecution) {
       return new StepExecution(
           "stepName",
           jobExecution
       );
+    }
+  
+    static JobExecution makeJobExecution() {
+      final JobExecution jobExecution = mock(JobExecution.class);
+      final JobInstance jobInstance = mock(JobInstance.class);
+      when(jobInstance.getInstanceId()).thenReturn(1L);
+      when(jobExecution.getJobInstance()).thenReturn(jobInstance);
+      return jobExecution;
     }
   }
 }
